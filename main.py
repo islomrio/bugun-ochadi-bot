@@ -45,7 +45,7 @@ async def monitor(context: ContextTypes.DEFAULT_TYPE):
         try:
             response = requests.get(url, timeout=20)
             text = response.text.lower()
-current_state = "|".join([k for k in KEYWORDS if k in text]) 
+            current_state = "|".join([k for k in KEYWORDS if k in text]) 
 
             if url not in last_states:
                 last_states[url] = current_state
