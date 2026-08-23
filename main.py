@@ -20,7 +20,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🟢 Монитор активен")
-
+async def test(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("🚨 Тестовое уведомление. Всё работает.")
 KEYWORDS = [
     "bugun o‘chadi",
     "bugun o'chadi",
@@ -67,7 +68,7 @@ app = Application.builder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("status", status))
-
+app.add_handler(CommandHandler("test", test))
 app.job_queue.run_repeating(monitor, interval=60, first=10)
 
 app.run_polling()
