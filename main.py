@@ -4,7 +4,20 @@ import os
 import requests
 
 TOKEN = os.getenv("BOT_TOKEN")
-
+DISTRICTS = {
+    "Юнусабад": ["yunusobod", "yunusabad", "юнусабад"],
+    "Чиланзар": ["chilonzor", "chilanzar", "чиланзар"],
+    "Мирабад": ["mirobod", "mirabad", "мирабад"],
+    "Мирзо-Улугбек": ["mirzo ulugbek", "mirzo-ulugbek", "мирзо улугбек"],
+    "Шайхантахур": ["shayxontohur", "shaykhantakhur", "шайхантахур"],
+    "Алмазар": ["olmazor", "almazar", "алмазар"],
+    "Сергелий": ["sergeli", "сергелий"],
+    "Яккасарай": ["yakkasaroy", "якасарай", "яккасарай"],
+    "Яшнабад": ["yashnobod", "яшнабад"],
+    "Учтепа": ["uchtepa", "учтепа"],
+    "Бектемир": ["bektemir", "бектемир"],
+    "Янгихаёт": ["yangihayot", "янгихаёт"]
+}
 # СЮДА ПОТОМ ВСТАВИМ ССЫЛКУ ДЛЯ МОНИТОРИНГА
 CHECK_URL = "https://www.het.uz/en/lists"
 
