@@ -20,7 +20,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🟢 Монитор активен")
-
+KEYWORDS = [
+    "bugun o‘chadi",
+    "bugun o'chadi",
+    "bugun",
+    "o‘chiriladi",
+    "o'chiriladi",
+    "отключение",
+    "отключат"
+]
 SOURCES = {
     "⚡ Свет": "https://www.het.uz/en/lists",
     "💧 Вода": "https://veoliaenergy.uz/",
@@ -35,7 +43,8 @@ async def monitor(context: ContextTypes.DEFAULT_TYPE):
     for name, url in SOURCES.items():
         try:
             response = requests.get(url, timeout=20)
-            current_state = response.text
+            text = response.text.lower()
+current_state = "|".join([k for k in KEYWORDS if k in text]) 
 
             if url not in last_states:
                 last_states[url] = current_state
