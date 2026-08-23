@@ -6,7 +6,7 @@ import requests
 TOKEN = os.getenv("BOT_TOKEN")
 
 # СЮДА ПОТОМ ВСТАВИМ ССЫЛКУ ДЛЯ МОНИТОРИНГА
-CHECK_URL = "https://example.com"
+CHECK_URL = "https://www.het.uz/en/lists"
 
 last_state = None
 
