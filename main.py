@@ -21,27 +21,37 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🟢 Монитор активен")
 
+SOURCES = {
+    "⚡ Свет": "https://www.het.uz/en/lists",
+    "💧 Вода": "https://veoliaenergy.uz/",
+    "🔥 Газ": "https://hududgaz.uz/"
+}
+
+last_states = {}
+
 async def monitor(context: ContextTypes.DEFAULT_TYPE):
-    global last_state
+    global last_states
 
-    try:
-        response = requests.get(CHECK_URL, timeout=20)
-        current_state = response.text
+    for name, url in SOURCES.items():
+        try:
+            response = requests.get(url, timeout=20)
+            current_state = response.text
 
-        if last_state is None:
-            last_state = current_state
-            return
+            if url not in last_states:
+                last_states[url] = current_state
+                continue
 
-        if current_state != last_state:
-            last_state = current_state
+            if current_state != last_states[url]:
+                last_states[url] = current_state
 
-            for chat_id in context.application.bot_data.get("chats", set()):
-                await context.bot.send_message(
-                    chat_id,
-                    "🚨 На сайте обнаружено изменение!"
-                )
-    except Exception as e:
-        print(e)
+                for chat_id in context.application.bot_data["chats"]:
+                    await context.bot.send_message(
+                        chat_id,
+                        f"🚨 {name}\n\nОбнаружено изменение на официальном сайте.\n{url}"
+                    )
+
+        except Exception as e:
+            print(e)
 
 app = Application.builder().token(TOKEN).build()
 
