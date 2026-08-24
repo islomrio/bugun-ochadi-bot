@@ -14,19 +14,20 @@ import os
 
 TOKEN = os.getenv("BOT_TOKEN")
 CHANNEL_ID = int(os.getenv("CHANNEL_ID", "0"))
+
 DISTRICTS = {
-    "Юнусабад": ["yunusobod", "yunusabad", "юнусабад"],
-    "Чиланзар": ["chilonzor", "chilanzar", "чиланзар"],
-    "Мирабад": ["mirobod", "mirabad", "мирабад"],
-    "Мирзо-Улугбек": ["mirzo ulugbek", "mirzo-ulugbek", "мирзо улугбек"],
-    "Шайхантахур": ["shayxontohur", "shaykhantakhur", "шайхантахур"],
-    "Алмазар": ["olmazor", "almazar", "алмазар"],
-    "Сергелий": ["sergeli", "сергелий"],
-    "Яккасарай": ["yakkasaroy", "яккасарай"],
-    "Яшнабад": ["yashnobod", "яшнабад"],
-    "Учтепа": ["uchtepa", "учтепа"],
-    "Бектемир": ["bektemir", "бектемир"],
-    "Янгихаёт": ["yangihayot", "янгихаёт"],
+    "Юнусабад": ["yunusobod","yunusabad","юнусабад"],
+    "Чиланзар": ["chilonzor","chilanzar","чиланзар"],
+    "Мирабад": ["mirobod","mirabad","мирабад"],
+    "Мирзо-Улугбек": ["mirzo ulugbek","mirzo-ulugbek","мирзо улугбек"],
+    "Шайхантахур": ["shayxontohur","шайхантахур"],
+    "Алмазар": ["olmazor","алмазар"],
+    "Сергелий": ["sergeli","сергелий"],
+    "Яккасарай": ["yakkasaroy","яккасарай"],
+    "Яшнабад": ["yashnobod","яшнабад"],
+    "Учтепа": ["uchtepa","учтепа"],
+    "Бектемир": ["bektemir","бектемир"],
+    "Янгихаёт": ["yangihayot","янгихаёт"],
 }
 
 SOURCES = {
@@ -38,160 +39,178 @@ SOURCES = {
 last_states = {}
 sent_hashes = set()
 
-# ---------- Карточка ----------
+
 def create_card(service, district):
-    template_path = os.path.join(
+
+    template = os.path.join(
         os.path.dirname(__file__),
         "F50D7071-D459-4E81-BDA8-A30C0A0BDA56.png"
     )
 
-    img = Image.open(template_path).convert("RGB")
+    if os.path.exists(template):
+        img = Image.open(template).convert("RGB")
+    else:
+        img = Image.new("RGB",(1080,1350),(18,18,22))
+
     draw = ImageDraw.Draw(img)
 
     try:
-        title = ImageFont.truetype("DejaVuSans-Bold.ttf", 54)
-        text = ImageFont.truetype("DejaVuSans-Bold.ttf", 42)
+        title = ImageFont.truetype("DejaVuSans-Bold.ttf",58)
+        text = ImageFont.truetype("DejaVuSans-Bold.ttf",44)
     except:
         title = ImageFont.load_default()
         text = ImageFont.load_default()
 
-    # Услуга
-    draw.text((250, 338), service.upper(), fill="white", font=title)
+    draw.text((250,338),service.upper(),fill="white",font=title)
+    draw.text((250,545),district.upper(),fill="white",font=text)
 
-    # Район
-    draw.text((250, 545), district.upper(), fill="white", font=text)
-
-    path = "/tmp/card.png"
+    path="/tmp/card.png"
     img.save(path)
     return path
 
 
-# ---------- Команды ----------
+async def publish(card,caption,context,chat_id):
+    with open(card,"rb") as photo:
+        await context.bot.send_photo(
+            chat_id=chat_id,
+            photo=photo,
+            caption=caption
+        )
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    users = context.application.bot_data.setdefault("users", {})
-    users.setdefault(update.effective_chat.id, None)
+    users=context.application.bot_data.setdefault("users",{})
+    users.setdefault(update.effective_chat.id,None)
 
-    keyboard = [
-        ["Юнусабад", "Чиланзар"],
-        ["Мирабад", "Мирзо-Улугбек"],
-        ["Шайхантахур", "Алмазар"],
-        ["Сергелий", "Яккасарай"],
-        ["Яшнабад", "Учтепа"],
-        ["Бектемир", "Янгихаёт"],
+    keyboard=[
+        ["Юнусабад","Чиланзар"],
+        ["Мирабад","Мирзо-Улугбек"],
+        ["Шайхантахур","Алмазар"],
+        ["Сергелий","Яккасарай"],
+        ["Яшнабад","Учтепа"],
+        ["Бектемир","Янгихаёт"],
     ]
 
     await update.message.reply_text(
-        "BUGUN O'CHADI MONITOR\n\nВыберите район:",
-        reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
+        "BUGUN O'CHADI\n\nВыберите район:",
+        reply_markup=ReplyKeyboardMarkup(keyboard,resize_keyboard=True)
     )
+
 
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🟢 Монитор активен")
 
+
 async def test(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    card = create_card("⚡ Свет", "Юнусабад")
-    with open(card, "rb") as photo:
-        await context.bot.send_photo(
-            chat_id=update.effective_chat.id,
-            photo=photo,
-            caption="Тестовая карточка.",
+
+    card=create_card("⚡ Свет","Юнусабад")
+
+    await publish(card,"Тестовая карточка.",context,update.effective_chat.id)
+
+    if CHANNEL_ID:
+        await publish(
+            card,
+            "⚡ Свет\n📍 Юнусабад\n#BugunOchadi",
+            context,
+            CHANNEL_ID
         )
+
 
 async def choose_district(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    district = update.message.text
+    district=update.message.text
 
     if district not in DISTRICTS:
         return
 
-    users = context.application.bot_data.setdefault("users", {})
-    users[update.effective_chat.id] = district
+    users=context.application.bot_data.setdefault("users",{})
+    users[update.effective_chat.id]=district
 
     await update.message.reply_text(
-        f"✅ Район сохранён: {district}"
+        f"✅ Район сохранён: {district}\n\nТеперь уведомления будут приходить автоматически."
     )
-    await test(update, context)
-    return
-# ---------- Монитор ----------
+
 
 async def monitor(context: ContextTypes.DEFAULT_TYPE):
 
-    users = context.application.bot_data.setdefault("users", {})
+    users=context.application.bot_data.setdefault("users",{})
 
-    for service, url in SOURCES.items():
+    for service,url in SOURCES.items():
 
         try:
-            response = requests.get(
+
+            r=requests.get(
                 url,
                 timeout=20,
-                headers={"User-Agent": "Mozilla/5.0"},
+                headers={"User-Agent":"Mozilla/5.0"}
             )
 
-            response.raise_for_status()
-
-            soup = BeautifulSoup(response.text, "lxml")
-            text = soup.get_text(" ", strip=True).lower()
-
-            state = hashlib.md5(text.encode()).hexdigest()
-
-            if last_states.get(url) == state:
+            if r.status_code!=200:
+                print(f"{service}: HTTP {r.status_code}")
                 continue
 
-            last_states[url] = state
+            text=BeautifulSoup(r.text,"lxml").get_text(" ",strip=True).lower()
 
-            for chat_id, district in users.items():
+            state=hashlib.md5(text.encode()).hexdigest()
+
+            if last_states.get(url)==state:
+                continue
+
+            last_states[url]=state
+
+            for chat_id,district in users.items():
 
                 if not district:
                     continue
 
-                aliases = DISTRICTS.get(district, [])
+                if any(a in text for a in DISTRICTS[district]):
 
-                if any(alias in text for alias in aliases):
-
-                    msg_hash = hashlib.md5(
+                    h=hashlib.md5(
                         f"{chat_id}:{url}:{state}".encode()
                     ).hexdigest()
 
-                    if msg_hash in sent_hashes:
+                    if h in sent_hashes:
                         continue
 
-                    sent_hashes.add(msg_hash)
+                    sent_hashes.add(h)
 
-                    card = create_card(service, district)
+                    card=create_card(service,district)
 
-                    with open(card, "rb") as photo:
-                        await context.bot.send_photo(
-                            chat_id=chat_id,
-                            photo=photo,
-                            caption=f"{service}: найдено новое обновление.",
-                        )
+                    await publish(
+                        card,
+                        f"{service}\n📍 {district}",
+                        context,
+                        chat_id
+                    )
+
                     if CHANNEL_ID:
-                        with open(card, "rb") as photo:
-                            await context.bot.send_photo(
-                                chat_id=CHANNEL_ID,
-                                photo=photo,
-                                caption=f"{service}\n📍 Район: {district}\n#BugunOchadi",
-                            )
+                        await publish(
+                            card,
+                            f"{service}\n📍 Район: {district}\n#BugunOchadi",
+                            context,
+                            CHANNEL_ID
+                        )
+
         except Exception as e:
-            print(f"[{service}] {e}")
+            print(service,e)
 
-# ---------- Запуск ----------
 
-app = Application.builder().token(TOKEN).build()
+app=Application.builder().token(TOKEN).build()
 
-app.add_handler(CommandHandler("start", start))
-app.add_handler(CommandHandler("status", status))
-app.add_handler(CommandHandler("test", test))
+app.add_handler(CommandHandler("start",start))
+app.add_handler(CommandHandler("status",status))
+app.add_handler(CommandHandler("test",test))
 app.add_handler(
-    MessageHandler(filters.TEXT & ~filters.COMMAND, choose_district)
+    MessageHandler(filters.TEXT & ~filters.COMMAND,choose_district)
 )
 
 app.job_queue.run_repeating(
     monitor,
     interval=60,
-    first=10,
+    first=10
 )
 
-app.run_polling(drop_pending_updates=True)
+app.run_polling(
+    drop_pending_updates=True
+)
