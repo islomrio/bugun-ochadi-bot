@@ -1,5 +1,5 @@
 from telegram import Update, ReplyKeyboardMarkup
-from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 import os
 import requests
 import hashlib
@@ -49,6 +49,18 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🟢 Монитор активен")
 async def test(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🚨 Тестовое уведомление. Всё работает.")
+async def choose_district(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+
+    if text not in DISTRICTS:
+        return
+
+    users = context.application.bot_data.setdefault("users", {})
+    users[update.effective_chat.id] = text
+
+    await update.message.reply_text(
+        f"✅ Район сохранён: {text}\n\nТеперь буду присылать уведомления только по этому району."
+    )
 KEYWORDS = [
     "bugun o‘chadi",
     "bugun o'chadi",
@@ -99,6 +111,7 @@ app = Application.builder().token(TOKEN).build()
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("status", status))
 app.add_handler(CommandHandler("test", test))
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, choose_district))
 app.job_queue.run_repeating(monitor, interval=60, first=10)
 
 app.run_polling()
