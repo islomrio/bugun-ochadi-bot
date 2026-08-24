@@ -191,8 +191,8 @@ async def monitor(context: ContextTypes.DEFAULT_TYPE):
                             photo=photo
                         )
 
-       except Exception as e:
-                print(e)
+                except Exception as e:
+                    print(e)
 
 app = Application.builder().token(TOKEN).build()
 
