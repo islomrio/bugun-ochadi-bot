@@ -1,5 +1,5 @@
 from telegram import Update, ReplyKeyboardMarkup
-from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
+from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 import os
 import requests
 import hashlib
@@ -109,16 +109,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🟢 Монитор активен")
+
 async def test(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🚨 Тестовое уведомление. Всё работает.")
 async def choose_district(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
+    text = update.message.text.lower()
 
     if text not in DISTRICTS:
         return
 
     users = context.application.bot_data.setdefault("users", {})
-    users[update.effective_chat.id] = text
+    users[update.effective_chat.id] = update.message.text
 
     await update.message.reply_text(
         f"✅ Район сохранён: {text}\n\nТеперь буду присылать уведомления только по этому району."
@@ -184,9 +185,11 @@ async def monitor(context: ContextTypes.DEFAULT_TYPE):
                            photo=photo
                        )
                except Exception as e:
-                   print(e)
-          except requests.exceptions.RequestException:
-              continue
+                   print(e)    
+
+    
+       except requests.exceptions.RequestException:
+           continue
 app = Application.builder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
