@@ -13,7 +13,7 @@ import hashlib
 import os
 
 TOKEN = os.getenv("BOT_TOKEN")
-
+CHANNEL_ID = int(os.getenv("CHANNEL_ID", "0"))
 DISTRICTS = {
     "Юнусабад": ["yunusobod", "yunusabad", "юнусабад"],
     "Чиланзар": ["chilonzor", "chilanzar", "чиланзар"],
