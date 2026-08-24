@@ -2,7 +2,7 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 import os
 import requests
-
+import hashlib
 TOKEN = os.getenv("BOT_TOKEN")
 DISTRICTS = {
     "Юнусабад": ["yunusobod", "yunusabad", "юнусабад"],
@@ -51,9 +51,9 @@ SOURCES = {
 }
 
 last_states = {}
-
+sent_hashes = set()
 async def monitor(context: ContextTypes.DEFAULT_TYPE):
-    global last_states
+    global last_states, sent_hashes
 
     for name, url in SOURCES.items():
         try:
@@ -67,7 +67,10 @@ async def monitor(context: ContextTypes.DEFAULT_TYPE):
 
             if current_state != last_states[url]:
                 last_states[url] = current_state
-
+                msg_hash = hashlib.md5(f"{name}:{current_state}".encode()).hexdigest()
+                if msg_hash in sent_hashes:
+                    continue
+                sent_hashes.add(msg_hash)
                 for chat_id in context.application.bot_data["chats"]:
                     await context.bot.send_message(
                         chat_id,
