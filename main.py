@@ -224,7 +224,7 @@ def main():
     loop = asyncio.get_event_loop()
     loop.create_task(run_telethon())
 
-    app.run_polling(drop_pending_updates=True)
+    app.run_polling(drop_pending_updates=True, close_loop=False)
 
 
 if __name__ == "__main__":
