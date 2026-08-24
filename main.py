@@ -1,15 +1,8 @@
 import os
-import re
-import json
-import hashlib
+import asyncio
 import logging
-from datetime import datetime
 
-import requests
-from bs4 import BeautifulSoup
-from PIL import Image, ImageDraw, ImageFont
-
-from telegram import Update, ReplyKeyboardMarkup
+from telegram import Bot, Update
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -18,412 +11,209 @@ from telegram.ext import (
     filters,
 )
 
-# ======================================
-# НАСТРОЙКИ
-# ======================================
+from telethon import TelegramClient, events
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(message)s"
+logging.basicConfig(level=logging.INFO)
+
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
+API_ID = int(os.getenv("API_ID"))
+API_HASH = os.getenv("API_HASH")
+
+SESSION = "bugun_session"
+
+SOURCE_CHANNELS = [
+    "minenergy_uz",
+    "AO_Hududgaztaminot",
+    "uzsuv_chat",
+]
+
+bot = Bot(BOT_TOKEN)
+
+client = TelegramClient(
+    SESSION,
+    API_ID,
+    API_HASH,
 )
 
-TOKEN = os.getenv("BOT_TOKEN")
-CHANNEL_ID = int(os.getenv("CHANNEL_ID", "0"))
+user_regions = {}
+last_messages = set()
 
-CHECK_INTERVAL = 60
-CARD_TEMPLATE = "F50D7071-D459-4E81-BDA8-A30C0A0BDA56.png"
-CACHE_FILE = "storage.json"
-
-DISTRICTS = {
-    "Юнусабад": ["yunusobod","yunusabad","юнусабад"],
-    "Чиланзар": ["chilonzor","chilanzar","чиланзар"],
-    "Мирабад": ["mirobod","mirabad","мирабад"],
-    "Мирзо-Улугбек": ["mirzo ulugbek","mirzo-ulugbek","мирзо улугбек"],
-    "Шайхантахур": ["shayxontohur","шайхантахур"],
-    "Алмазар": ["olmazor","алмазар"],
-    "Сергелий": ["sergeli","сергелий"],
-    "Яккасарай": ["yakkasaroy","яккасарай"],
-    "Яшнабад": ["yashnobod","яшнабад"],
-    "Учтепа": ["uchtepa","учтепа"],
-    "Бектемир": ["bektemir","бектемир"],
-    "Янгихаёт": ["yangihayot","янгихаёт"],
-}
-
-# Официальные источники
-
-SOURCES = {
-    "⚡ Свет": "https://www.het.uz/en/lists/category/33",
-    "💧 Вода": "https://veoliaenergy.uz/ru",
-}
-
-# ======================================
-# КЭШ
-# ======================================
-
-last_states = {}
-
-def load_cache():
-
-    if not os.path.exists(CACHE_FILE):
-        return {"sent":[]}
-
-    try:
-        with open(CACHE_FILE,"r",encoding="utf-8") as f:
-            return json.load(f)
-    except:
-        return {"sent":[]}
+REGIONS = [
+    "Юнусабад",
+    "Чиланзар",
+    "Мирабад",
+    "Мирзо-Улугбек",
+    "Шайхантахур",
+    "Яккасарай",
+    "Учтепа",
+    "Алмазар",
+    "Сергелий",
+    "Бектемир",
+    "Янгихаёт",
+]
 
 
-def save_cache(cache):
-
-    with open(CACHE_FILE,"w",encoding="utf-8") as f:
-        json.dump(cache,f,ensure_ascii=False,indent=2)
-
-
-cache = load_cache()
-
-MAX_CACHE = 300
-
-def remember_hash(h):
-
-    if h not in cache["sent"]:
-        cache["sent"].append(h)
-        cache["sent"]=cache["sent"][-MAX_CACHE:]
-        save_cache(cache)
-
-# ======================================
-# КАРТОЧКА
-# ======================================
-
-def create_card(service,district,reason="",time_text=""):
-
-    template=os.path.join(
-        os.path.dirname(__file__),
-        CARD_TEMPLATE
-    )
-
-    img=Image.open(template).convert("RGB")
-
-    draw=ImageDraw.Draw(img)
-
-    try:
-        title=ImageFont.truetype("DejaVuSans-Bold.ttf",54)
-        text=ImageFont.truetype("DejaVuSans-Bold.ttf",42)
-        small=ImageFont.truetype("DejaVuSans.ttf",30)
-    except:
-        title=ImageFont.load_default()
-        text=ImageFont.load_default()
-        small=ImageFont.load_default()
-
-    draw.text((250,338),service.upper(),fill="white",font=title)
-    draw.text((250,545),district.upper(),fill="white",font=text)
-
-    if time_text:
-        draw.text((120,760),f"🕒 {time_text}",fill="white",font=small)
-
-    if reason:
-        draw.text((120,820),reason[:60],fill="white",font=small)
-
-    path="/tmp/card.png"
-    img.save(path)
-
-    return path
-
-# ======================================
-# ПАРСЕР
-# ======================================
-
-def clean_text(text):
-
-    return re.sub(r"\s+"," ",text).strip()
-
-
-def detect_district(text):
-
-    text=text.lower()
-
-    for district,aliases in DISTRICTS.items():
-
-        if any(a in text for a in aliases):
-            return district
-
+def detect_region(text):
+    low = text.lower()
+    for r in REGIONS:
+        if r.lower() in low:
+            return r
     return None
 
 
-def extract_time(text):
+def detect_type(text):
+    low = text.lower()
 
-    m=re.search(
-        r"\d{1,2}[:.]\d{2}\s*[-–]\s*\d{1,2}[:.]\d{2}",
-        text
-    )
+    if any(x in low for x in [
+        "elektr",
+        "электр",
+        "svet",
+        "свет",
+        "tok",
+        "электроэнерг",
+    ]):
+        return "⚡ Свет"
 
-    if m:
-        return m.group(0)
+    if any(x in low for x in [
+        "gaz",
+        "газ",
+    ]):
+        return "🔥 Газ"
 
-    return ""
+    if any(x in low for x in [
+        "suv",
+        "вода",
+        "водоснаб",
+    ]):
+        return "💧 Вода"
 
-
-def extract_reason(service):
-
-    if "Свет" in service:
-        return "Плановые работы"
-
-    if "Вода" in service:
-        return "Технические работы"
-
-    return "Официальное сообщение"
-
-
-def parse_official_page(service,url):
-
-    r=requests.get(
-        url,
-        timeout=20,
-        headers={"User-Agent":"Mozilla/5.0"}
-    )
-
-    if r.status_code!=200:
-        raise Exception(f"HTTP {r.status_code}")
-
-    soup=BeautifulSoup(r.text,"lxml")
-
-    text=clean_text(
-        soup.get_text(" ",strip=True)
-    )
-
-    district=detect_district(text)
-
-    if not district:
-        return None
-
-    return {
-        "service":service,
-        "district":district,
-        "time":extract_time(text),
-        "reason":extract_reason(service),
-        "hash":hashlib.md5(text.encode()).hexdigest()
-    }
-
-# ======================================
-# TELEGRAM
-# ======================================
-
-async def send_card(context,chat_id,data):
-
-    card=create_card(
-        data["service"],
-        data["district"],
-        data["reason"],
-        data["time"]
-    )
-
-    caption=(
-        f"{data['service']}\n\n"
-        f"📍 Район: {data['district']}\n"
-    )
-
-    if data["time"]:
-        caption+=f"🕒 Время: {data['time']}\n"
-
-    caption+=(
-        f"🛠 Причина: {data['reason']}\n\n"
-        "Источник: официальный оператор\n"
-        "#BugunOchadi"
-    )
-
-    with open(card,"rb") as photo:
-
-        await context.bot.send_photo(
-            chat_id=chat_id,
-            photo=photo,
-            caption=caption
-        )
-
-# ======================================
-# КОМАНДЫ
-# ======================================
-
-async def start(update:Update,context:ContextTypes.DEFAULT_TYPE):
-
-    users=context.application.bot_data.setdefault("users",{})
-
-    users.setdefault(
-        update.effective_chat.id,
-        None
-    )
-
-    keyboard=[
-        ["Юнусабад","Чиланзар"],
-        ["Мирабад","Мирзо-Улугбек"],
-        ["Шайхантахур","Алмазар"],
-        ["Сергелий","Яккасарай"],
-        ["Яшнабад","Учтепа"],
-        ["Бектемир","Янгихаёт"],
-    ]
-
-    await update.message.reply_text(
-        "BUGUN O'CHADI\n\nВыберите район:",
-        reply_markup=ReplyKeyboardMarkup(
-            keyboard,
-            resize_keyboard=True
-        )
-    )
+    return "📢 Сообщение"
 
 
-async def status(update:Update,context:ContextTypes.DEFAULT_TYPE):
-
-    users=context.application.bot_data.setdefault("users",{})
-
-    district=users.get(
-        update.effective_chat.id,
-        "не выбран"
-    )
-
-    await update.message.reply_text(
-        f"🟢 Монитор активен\n📍 Район: {district}"
-    )
-
-
-async def choose_district(update:Update,context:ContextTypes.DEFAULT_TYPE):
-
-    district=update.message.text
-
-    if district not in DISTRICTS:
+async def publish(text, media=None):
+    if text in last_messages:
         return
 
-    users=context.application.bot_data.setdefault("users",{})
+    last_messages.add(text)
 
-    users[update.effective_chat.id]=district
+    if len(last_messages) > 300:
+        last_messages.clear()
+        last_messages.add(text)
 
-    await update.message.reply_text(
-        f"✅ Район сохранён: {district}"
-    )
-
-
-async def test(update:Update,context:ContextTypes.DEFAULT_TYPE):
-
-    data={
-        "service":"⚡ Свет",
-        "district":"Юнусабад",
-        "time":"09:00–17:00",
-        "reason":"Плановые работы"
-    }
-
-    await send_card(
-        context,
-        update.effective_chat.id,
-        data
-    )
-
-    if CHANNEL_ID:
-        await send_card(
-            context,
-            CHANNEL_ID,
-            data
-        )
-        # ======================================
-# МОНИТОР
-# ======================================
-
-async def monitor(context: ContextTypes.DEFAULT_TYPE):
-
-    users = context.application.bot_data.setdefault("users", {})
-
-    for service, url in SOURCES.items():
-
+    if media:
         try:
-            data = parse_official_page(service, url)
+            await bot.send_photo(
+                CHANNEL_ID,
+                media,
+                caption=text,
+            )
+            return
+        except Exception:
+            pass
 
-            if not data:
-                continue
-
-            # Если состояние страницы не изменилось — пропускаем
-            if last_states.get(service) == data["hash"]:
-                continue
-
-            last_states[service] = data["hash"]
-
-            # Защита от дублей после перезапуска
-            if data["hash"] in cache["sent"]:
-                continue
-
-            remember_hash(data["hash"])
-
-            # Публикация в канал
-            if CHANNEL_ID:
-                try:
-                    await send_card(context, CHANNEL_ID, data)
-                    logging.info(f"Канал: опубликовано {service}")
-                except Exception as e:
-                    logging.error(f"Ошибка канала: {e}")
-
-            # Личные уведомления только нужному району
-            for chat_id, district in users.items():
-
-                if district == data["district"]:
-                    try:
-                        await send_card(context, chat_id, data)
-                    except Exception as e:
-                        logging.error(f"Ошибка пользователю {chat_id}: {e}")
-
-        except Exception as e:
-            logging.error(f"{service}: {e}")
+    await bot.send_message(
+        CHANNEL_ID,
+        text,
+    )
 
 
-# ======================================
-# ДОПОЛНИТЕЛЬНЫЕ КОМАНДЫ
-# ======================================
+@client.on(events.NewMessage(chats=SOURCE_CHANNELS))
+async def new_post(event):
+    text = event.raw_text or ""
 
-async def info(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not text.strip():
+        return
+
+    region = detect_region(text)
+    outage = detect_type(text)
+
+    caption = f"{outage}\n"
+
+    if region:
+        caption += f"📍 Район: {region}\n"
+
+    caption += f"\n{text}"
+
+    media = None
+
+    try:
+        if event.photo:
+            media = await event.download_media(file=bytes)
+    except Exception:
+        media = None
+
+    await publish(caption, media)
+
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "BUGUN O'CHADI\n\n"
+        "Напишите свой район.\n\n"
+        "Например:\n"
+        "Юнусабад"
+    )
+
+
+async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user.id
+    region = user_regions.get(user, "не выбран")
 
     await update.message.reply_text(
-        "📡 BUGUN O'CHADI\n\n"
-        "Источники:\n"
-        "⚡ HET (официальный список)\n"
-        "💧 Veolia (официальные новости)\n\n"
-        "Газ временно не подключён автоматически,\n"
-        "потому что у Hududgaz нет стабильного публичного списка отключений."
+        f"🟢 Монитор активен\n"
+        f"📍 Район: {region}"
     )
+    async def save_region(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not update.message.text:
+        return
 
+    text = update.message.text.strip()
 
-async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if text.startswith("/"):
+        return
 
-    users = context.application.bot_data.setdefault("users", {})
-
-    users[update.effective_chat.id] = None
+    user_regions[update.effective_user.id] = text
 
     await update.message.reply_text(
-        "♻️ Район сброшен.\n\nИспользуйте /start."
+        f"✅ Район сохранён: {text}\n\n"
+        "Теперь новые отключения будут автоматически отслеживаться."
     )
 
 
-# ======================================
-# ИНИЦИАЛИЗАЦИЯ
-# ======================================
+async def startup(app: Application):
+    try:
+        await client.start()
+        logging.info("Telethon подключён.")
+    except Exception as e:
+        logging.error(f"Ошибка запуска Telethon: {e}")
 
-app = Application.builder().token(TOKEN).build()
 
-app.add_handler(CommandHandler("start", start))
-app.add_handler(CommandHandler("status", status))
-app.add_handler(CommandHandler("test", test))
-app.add_handler(CommandHandler("info", info))
-app.add_handler(CommandHandler("reset", reset))
+async def run_telethon():
+    await client.run_until_disconnected()
 
-app.add_handler(
-    MessageHandler(
-        filters.TEXT & ~filters.COMMAND,
-        choose_district
+
+def main():
+    app = (
+        Application.builder()
+        .token(BOT_TOKEN)
+        .post_init(startup)
+        .build()
     )
-)
 
-app.job_queue.run_repeating(
-    monitor,
-    interval=CHECK_INTERVAL,
-    first=15
-)
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("status", status))
+    app.add_handler(
+        MessageHandler(
+            filters.TEXT & ~filters.COMMAND,
+            save_region,
+        )
+    )
 
-logging.info("BUGUN O'CHADI запущен.")
+    loop = asyncio.get_event_loop()
+    loop.create_task(run_telethon())
 
-app.run_polling(
-    drop_pending_updates=True
-)
+    app.run_polling(drop_pending_updates=True)
+
+
+if __name__ == "__main__":
+    main()
