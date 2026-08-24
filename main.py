@@ -142,53 +142,59 @@ SOURCES = {
 last_states = {}
 sent_hashes = set()
 users = {}
-async def monitor(context: ContextTypes.DEFAULT_TYPE):
+
+    async def monitor(context: ContextTypes.DEFAULT_TYPE):
     global last_states, sent_hashes
+
     users = context.application.bot_data.setdefault("users", {})
+
     for name, url in SOURCES.items():
         try:
             response = requests.get(url, timeout=10)
             response.raise_for_status()
+
             text = response.text.lower()
-            current_state = "|".join([k for k in KEYWORDS if k in text]) 
+            current_state = "|".join([k for k in KEYWORDS if k in text])
 
             if url not in last_states:
                 last_states[url] = current_state
                 continue
 
-            if current_state != last_states[url]:
-                last_states[url] = current_state
-                msg_hash = hashlib.md5(f"{name}:{current_state}".encode()).hexdigest()
-                if msg_hash in sent_hashes:
-                    continue
-                sent_hashes.add(msg_hash)
-                users = context.application.bot_data.setdefault("users", {})
+            if current_state == last_states[url]:
+                continue
+
+            last_states[url] = current_state
+
+            msg_hash = hashlib.md5(
+                f"{name}:{current_state}".encode()
+            ).hexdigest()
+
+            if msg_hash in sent_hashes:
+                continue
+
+            sent_hashes.add(msg_hash)
 
             for chat_id, district in users.items():
-
                 aliases = DISTRICTS.get(district, [])
 
-            if any(alias.lower() in text for alias in aliases):
+                if any(alias.lower() in text for alias in aliases):
+                    card = create_card(
+                        service=name,
+                        district=district,
+                        streets="Смотрите официальный список",
+                        time_text="По данным сайта",
+                        reason="Плановые работы",
+                        status="red"
+                    )
 
-               card = create_card(
-                   service=name,
-                   district=district,
-                   streets="Смотрите официальный список",
-                   time_text="По данным сайта",
-                   reason="Плановые работы",
-                   status="red"
-               )
-               
-                   with open(card, "rb") as photo:
-                       await context.bot.send_photo(
-                           chat_id=chat_id,
-                           photo=photo
-                       )
-        
-                      except requests.exceptions.RequestException:
-                           continue
+                    with open(card, "rb") as photo:
+                        await context.bot.send_photo(
+                            chat_id=chat_id,
+                            photo=photo
+                        )
 
-    
+        except requests.exceptions.RequestException:
+            continue
        
 app = Application.builder().token(TOKEN).build()
 
