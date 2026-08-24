@@ -1,4 +1,5 @@
 python-telegram-bot[job-queue]==22.3
+telethon==1.41.2
 requests==2.32.4
 Pillow==11.3.0
 beautifulsoup4==4.13.4
