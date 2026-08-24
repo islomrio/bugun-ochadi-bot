@@ -184,7 +184,7 @@ async def monitor(context: ContextTypes.DEFAULT_TYPE):
                     status="red"
 
                 )
-                try:
+            
                     with open(card, "rb") as photo:
                         await context.bot.send_photo(
                             chat_id=chat_id,
