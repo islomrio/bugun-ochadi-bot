@@ -194,8 +194,8 @@ async def monitor(context: ContextTypes.DEFAULT_TYPE):
                         photo=photo
 
                     )
-                except requests.exceptions.RequestException:
-                    continue
+            
+                
                except Exception as e:
                    print(e)
     
