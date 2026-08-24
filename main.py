@@ -165,11 +165,20 @@ async def monitor(context: ContextTypes.DEFAULT_TYPE):
                 aliases = DISTRICTS.get(district, [])
 
                 if any(alias.lower() in text for alias in aliases):
-                    await context.bot.send_message(
-                        chat_id,
-                        f"🚨 {name}\n\nОбнаружено изменение по району {district}.\n{url}"
+                    card = create_card(
+                         service=name,
+                         district=district,
+                         streets="Смотрите официальный список",
+                         time_text="По данным сайта",
+                         reason="Плановые работы",
+                         status="red"
                     )
 
+                       with open(card, "rb") as photo:
+                           await context.bot.send_photo(
+                              chat_id=chat_id,
+                              photo=photo
+                            )
         except Exception as e:
             print(e)
 
