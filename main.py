@@ -3,6 +3,7 @@ from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandl
 import os
 import requests
 import hashlib
+from PIL import Image, ImageDraw, ImageFont
 TOKEN = os.getenv("BOT_TOKEN")
 DISTRICTS = {
     "Юнусабад": ["yunusobod", "yunusabad", "юнусабад"],
@@ -18,6 +19,67 @@ DISTRICTS = {
     "Бектемир": ["bektemir", "бектемир"],
     "Янгихаёт": ["yangihayot", "янгихаёт"]
 }
+def create_card(service, district, streets, time_text, reason, status):
+    width, height = 1080, 1350
+
+    colors = {
+        "red": (225, 55, 55),
+        "green": (25, 160, 70),
+        "white": (160, 160, 160)
+    }
+
+    color = colors.get(status, colors["red"])
+
+    img = Image.new("RGB", (width, height), (10, 22, 45))
+    draw = ImageDraw.Draw(img)
+
+    try:
+        title_font = ImageFont.truetype("DejaVuSans-Bold.ttf", 70)
+        big_font = ImageFont.truetype("DejaVuSans-Bold.ttf", 120)
+        text_font = ImageFont.truetype("DejaVuSans.ttf", 42)
+        small_font = ImageFont.truetype("DejaVuSans.ttf", 34)
+    except:
+        title_font = ImageFont.load_default()
+        big_font = ImageFont.load_default()
+        text_font = ImageFont.load_default()
+        small_font = ImageFont.load_default()
+
+    draw.rectangle((0,0,1080,250), fill=color)
+
+    draw.text((60,40),"ПОДТВЕРЖДЕНО",fill="white",font=small_font)
+    draw.text((60,90),service,fill="white",font=big_font)
+    draw.text((60,200),"Плановое отключение",fill="white",font=text_font)
+
+    y=320
+
+    for title,value in [
+        ("РАЙОН",district),
+        ("МАХАЛЛИ / УЛИЦЫ",streets),
+        ("ВРЕМЯ",time_text),
+        ("ПРИЧИНА",reason)
+    ]:
+        draw.text((70,y),title,fill=(140,140,140),font=small_font)
+        draw.text((70,y+45),value,fill="white",font=text_font)
+        y+=140
+
+    draw.rectangle((0,980,1080,1065),fill=(20,35,70))
+    draw.text((60,1005),"СТАТУС:",fill="white",font=text_font)
+    draw.ellipse((300,1002,340,1042),fill=color)
+
+    draw.text((360,1005),
+              "ПОДТВЕРЖДЕНО" if status=="red"
+              else "РАБОТЫ ЗАВЕРШЕНЫ"
+              if status=="green"
+              else "ПРОВЕРЯЕТСЯ",
+              fill="white",font=text_font)
+
+    draw.text((60,1105),"BUGUN O'CHADI",fill=(255,215,0),font=title_font)
+    draw.text((60,1185),"⚡ Свет   💧 Вода   🔥 Газ",fill="white",font=text_font)
+
+    path="/tmp/card.png"
+    img.save(path)
+
+    return path
 # СЮДА ПОТОМ ВСТАВИМ ССЫЛКУ ДЛЯ МОНИТОРИНГА
 CHECK_URL = "https://www.het.uz/en/lists"
 
