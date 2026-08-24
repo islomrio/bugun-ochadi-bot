@@ -112,7 +112,8 @@ async def choose_district(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"✅ Район сохранён: {district}"
     )
-
+await test(update, context)
+return
 # ---------- Монитор ----------
 
 async def monitor(context: ContextTypes.DEFAULT_TYPE):
