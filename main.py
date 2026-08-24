@@ -200,6 +200,7 @@ async def shutdown(app: Application):
 
 
 async def run_telethon():
+    await client.start()
     await client.run_until_disconnected()
 
 
@@ -221,8 +222,7 @@ def main():
         )
     )
 
-    loop = asyncio.get_event_loop()
-    loop.create_task(run_telethon())
+    asyncio.get_event_loop().create_task(run_telethon())
 
     app.run_polling(drop_pending_updates=True, close_loop=False)
 
