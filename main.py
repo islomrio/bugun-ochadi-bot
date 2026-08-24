@@ -1,10 +1,3 @@
-import os
-import hashlib
-import requests
-
-from bs4 import BeautifulSoup
-from PIL import Image, ImageDraw, ImageFont
-
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import (
     Application,
@@ -13,6 +6,11 @@ from telegram.ext import (
     ContextTypes,
     filters,
 )
+from bs4 import BeautifulSoup
+from PIL import Image, ImageDraw, ImageFont
+import requests
+import hashlib
+import os
 
 TOKEN = os.getenv("BOT_TOKEN")
 CHANNEL_ID = int(os.getenv("CHANNEL_ID", "0"))
@@ -21,9 +19,9 @@ DISTRICTS = {
     "Юнусабад": ["yunusobod", "yunusabad", "юнусабад"],
     "Чиланзар": ["chilonzor", "chilanzar", "чиланзар"],
     "Мирабад": ["mirobod", "mirabad", "мирабад"],
-    "Мирзо-Улугбек": ["mirzo ulugbek", "мирзо улугбек"],
-    "Шайхантахур": ["shayxontohur", "шайхантахур"],
-    "Алмазар": ["olmazor", "алмазар"],
+    "Мирзо-Улугбек": ["mirzo ulugbek", "mirzo-ulugbek", "мирзо улугбек"],
+    "Шайхантахур": ["shayxontohur", "shaykhantakhur", "шайхантахур"],
+    "Алмазар": ["olmazor", "almazar", "алмазар"],
     "Сергелий": ["sergeli", "сергелий"],
     "Яккасарай": ["yakkasaroy", "яккасарай"],
     "Яшнабад": ["yashnobod", "яшнабад"],
@@ -33,7 +31,7 @@ DISTRICTS = {
 }
 
 SOURCES = {
-    "⚡ Свет": "https://www.het.uz",
+    "⚡ Свет": "https://www.het.uz/uz/lists",
     "💧 Вода": "https://veoliaenergy.uz",
     "🔥 Газ": "https://hududgaz.uz",
 }
@@ -42,10 +40,7 @@ last_states = {}
 sent_hashes = set()
 
 
-# ================= КАРТОЧКА =================
-
 def create_card(service, district):
-
     template = os.path.join(
         os.path.dirname(__file__),
         "F50D7071-D459-4E81-BDA8-A30C0A0BDA56.png",
@@ -69,10 +64,7 @@ def create_card(service, district):
     return path
 
 
-# ================= КОМАНДЫ =================
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
     users = context.application.bot_data.setdefault("users", {})
     users.setdefault(update.effective_chat.id, None)
 
@@ -96,35 +88,31 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def test(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
     card = create_card("⚡ Свет", "Юнусабад")
 
-    # Личное сообщение
     with open(card, "rb") as photo:
         await context.bot.send_photo(
             chat_id=update.effective_chat.id,
             photo=photo,
-            caption="🧪 Тест пользователю.",
+            caption="Тест в личный чат.",
         )
 
-    # Проверка канала
     if CHANNEL_ID:
         try:
             with open(card, "rb") as photo:
                 await context.bot.send_photo(
                     chat_id=CHANNEL_ID,
                     photo=photo,
-                    caption="🧪 Тест канала\n#BugunOchadi",
+                    caption="✅ Проверка канала.",
                 )
-
-            await update.message.reply_text("✅ В канал отправлено.")
-
+            await update.message.reply_text("✅ Канал: сообщение отправлено.")
         except Exception as e:
-            await update.message.reply_text(f"❌ Ошибка канала:\n{e}")
+            await update.message.reply_text(
+                f"❌ Ошибка канала:\n{e}"
+            )
 
 
 async def choose_district(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
     district = update.message.text
 
     if district not in DISTRICTS:
@@ -137,26 +125,21 @@ async def choose_district(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"✅ Район сохранён: {district}"
     )
 
+    await test(update, context)
 
-# ================= МОНИТОР =================
 
 async def monitor(context: ContextTypes.DEFAULT_TYPE):
-
     users = context.application.bot_data.setdefault("users", {})
 
     for service, url in SOURCES.items():
-
         try:
-
             response = requests.get(
                 url,
                 timeout=20,
                 headers={"User-Agent": "Mozilla/5.0"},
             )
 
-            if response.status_code != 200:
-                print(f"{service}: HTTP {response.status_code}")
-                continue
+            response.raise_for_status()
 
             soup = BeautifulSoup(response.text, "lxml")
             text = soup.get_text(" ", strip=True).lower()
@@ -169,13 +152,12 @@ async def monitor(context: ContextTypes.DEFAULT_TYPE):
             last_states[url] = state
 
             for chat_id, district in users.items():
-
                 if not district:
                     continue
 
                 aliases = DISTRICTS[district]
 
-                if not any(a in text for a in aliases):
+                if not any(alias in text for alias in aliases):
                     continue
 
                 msg_hash = hashlib.md5(
@@ -193,7 +175,7 @@ async def monitor(context: ContextTypes.DEFAULT_TYPE):
                     await context.bot.send_photo(
                         chat_id=chat_id,
                         photo=photo,
-                        caption=f"{service}\n📍 {district}",
+                        caption=f"{service}: найдено обновление.",
                     )
 
                 if CHANNEL_ID:
@@ -210,8 +192,6 @@ async def monitor(context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             print(f"{service}: {e}")
 
-
-# ================= ЗАПУСК =================
 
 app = Application.builder().token(TOKEN).build()
 
