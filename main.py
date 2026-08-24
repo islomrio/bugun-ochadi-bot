@@ -163,7 +163,9 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🟢 Монитор активен\n"
         f"📍 Район: {region}"
     )
-    async def save_region(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+
+async def save_region(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
         return
 
@@ -182,10 +184,19 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def startup(app: Application):
     try:
-        await client.start()
+        await client.connect()
+
+        if not await client.is_user_authorized():
+            logging.error("Telethon не авторизован.")
+            return
+
         logging.info("Telethon подключён.")
     except Exception as e:
         logging.error(f"Ошибка запуска Telethon: {e}")
+
+
+async def shutdown(app: Application):
+    await client.disconnect()
 
 
 async def run_telethon():
@@ -197,6 +208,7 @@ def main():
         Application.builder()
         .token(BOT_TOKEN)
         .post_init(startup)
+        .post_shutdown(shutdown)
         .build()
     )
 
