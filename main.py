@@ -1,4 +1,4 @@
-from telegram import Update
+from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import Application, CommandHandler, ContextTypes
 import os
 import requests
@@ -28,9 +28,22 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chats.add(update.effective_chat.id)
     users = context.application.bot_data.setdefault("users", {})
     users.setdefault(update.effective_chat.id, None)
-    await update.message.reply_text(
-        "BUGUN O'CHADI MONITOR\n\nБот работает."
+    keyboard = [
+    ["Юнусабад", "Чиланзар"],
+    ["Мирабад", "Мирзо-Улугбек"],
+    ["Шайхантахур", "Алмазар"],
+    ["Сергелий", "Яккасарай"],
+    ["Яшнабад", "Учтепа"],
+    ["Бектемир", "Янгихаёт"]
+]
+
+await update.message.reply_text(
+    "BUGUN O'CHADI MONITOR\n\nВыберите свой район:",
+    reply_markup=ReplyKeyboardMarkup(
+        keyboard,
+        resize_keyboard=True
     )
+)
 
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🟢 Монитор активен")
