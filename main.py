@@ -1,10 +1,18 @@
 from telegram import Update, ReplyKeyboardMarkup
-from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    MessageHandler,
+    ContextTypes,
+    filters,
+)
 import os
 import requests
 import hashlib
 from PIL import Image, ImageDraw, ImageFont
+
 TOKEN = os.getenv("BOT_TOKEN")
+
 DISTRICTS = {
     "Юнусабад": ["yunusobod", "yunusabad", "юнусабад"],
     "Чиланзар": ["chilonzor", "chilanzar", "чиланзар"],
@@ -17,15 +25,36 @@ DISTRICTS = {
     "Яшнабад": ["yashnobod", "яшнабад"],
     "Учтепа": ["uchtepa", "учтепа"],
     "Бектемир": ["bektemir", "бектемир"],
-    "Янгихаёт": ["yangihayot", "янгихаёт"]
+    "Янгихаёт": ["yangihayot", "янгихаёт"],
 }
+
+KEYWORDS = [
+    "bugun o‘chadi",
+    "bugun o'chadi",
+    "bugun",
+    "o‘chiriladi",
+    "o'chiriladi",
+    "отключение",
+    "отключат",
+]
+
+SOURCES = {
+    "⚡ Свет": "https://www.het.uz/en/lists",
+    "💧 Вода": "https://veoliaenergy.uz/",
+    "🔥 Газ": "https://hududgaz.uz/",
+}
+
+last_states = {}
+sent_hashes = set()
+
+
 def create_card(service, district, streets, time_text, reason, status):
     width, height = 1080, 1350
 
     colors = {
         "red": (225, 55, 55),
         "green": (25, 160, 70),
-        "white": (160, 160, 160)
+        "white": (160, 160, 160),
     }
 
     color = colors.get(status, colors["red"])
@@ -44,106 +73,90 @@ def create_card(service, district, streets, time_text, reason, status):
         text_font = ImageFont.load_default()
         small_font = ImageFont.load_default()
 
-    draw.rectangle((0,0,1080,250), fill=color)
+    draw.rectangle((0, 0, 1080, 250), fill=color)
 
-    draw.text((60,40),"ПОДТВЕРЖДЕНО",fill="white",font=small_font)
-    draw.text((60,90),service,fill="white",font=big_font)
-    draw.text((60,200),"Плановое отключение",fill="white",font=text_font)
+    draw.text((60, 40), "ПОДТВЕРЖДЕНО", fill="white", font=small_font)
+    draw.text((60, 90), service, fill="white", font=big_font)
+    draw.text((60, 200), "Плановое отключение", fill="white", font=text_font)
 
-    y=320
+    y = 320
 
-    for title,value in [
-        ("РАЙОН",district),
-        ("МАХАЛЛИ / УЛИЦЫ",streets),
-        ("ВРЕМЯ",time_text),
-        ("ПРИЧИНА",reason)
+    for title, value in [
+        ("РАЙОН", district),
+        ("МАХАЛЛИ / УЛИЦЫ", streets),
+        ("ВРЕМЯ", time_text),
+        ("ПРИЧИНА", reason),
     ]:
-        draw.text((70,y),title,fill=(140,140,140),font=small_font)
-        draw.text((70,y+45),value,fill="white",font=text_font)
-        y+=140
+        draw.text((70, y), title, fill=(140, 140, 140), font=small_font)
+        draw.text((70, y + 45), value, fill="white", font=text_font)
+        y += 140
 
-    draw.rectangle((0,980,1080,1065),fill=(20,35,70))
-    draw.text((60,1005),"СТАТУС:",fill="white",font=text_font)
-    draw.ellipse((300,1002,340,1042),fill=color)
+    draw.rectangle((0, 980, 1080, 1065), fill=(20, 35, 70))
+    draw.text((60, 1005), "СТАТУС:", fill="white", font=text_font)
+    draw.ellipse((300, 1002, 340, 1042), fill=color)
 
-    draw.text((360,1005),
-              "ПОДТВЕРЖДЕНО" if status=="red"
-              else "РАБОТЫ ЗАВЕРШЕНЫ"
-              if status=="green"
-              else "ПРОВЕРЯЕТСЯ",
-              fill="white",font=text_font)
+    draw.text(
+        (360, 1005),
+        "ПОДТВЕРЖДЕНО"
+        if status == "red"
+        else "РАБОТЫ ЗАВЕРШЕНЫ"
+        if status == "green"
+        else "ПРОВЕРЯЕТСЯ",
+        fill="white",
+        font=text_font,
+    )
 
-    draw.text((60,1105),"BUGUN O'CHADI",fill=(255,215,0),font=title_font)
-    draw.text((60,1185),"⚡ Свет   💧 Вода   🔥 Газ",fill="white",font=text_font)
+    draw.text((60, 1105), "BUGUN O'CHADI", fill=(255, 215, 0), font=title_font)
+    draw.text((60, 1185), "⚡ Свет   💧 Вода   🔥 Газ", fill="white", font=text_font)
 
-    path="/tmp/card.png"
+    path = "/tmp/card.png"
     img.save(path)
 
     return path
-# СЮДА ПОТОМ ВСТАВИМ ССЫЛКУ ДЛЯ МОНИТОРИНГА
-CHECK_URL = "https://www.het.uz/en/lists"
 
-last_state = None
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chats = context.application.bot_data.setdefault("chats", set())
-    chats.add(update.effective_chat.id)
     users = context.application.bot_data.setdefault("users", {})
     users.setdefault(update.effective_chat.id, None)
+
     keyboard = [
-    ["Юнусабад", "Чиланзар"],
-    ["Мирабад", "Мирзо-Улугбек"],
-    ["Шайхантахур", "Алмазар"],
-    ["Сергелий", "Яккасарай"],
-    ["Яшнабад", "Учтепа"],
-    ["Бектемир", "Янгихаёт"]
-]
+        ["Юнусабад", "Чиланзар"],
+        ["Мирабад", "Мирзо-Улугбек"],
+        ["Шайхантахур", "Алмазар"],
+        ["Сергелий", "Яккасарай"],
+        ["Яшнабад", "Учтепа"],
+        ["Бектемир", "Янгихаёт"],
+    ]
 
     await update.message.reply_text(
-    "BUGUN O'CHADI MONITOR\n\nВыберите свой район:",
-    reply_markup=ReplyKeyboardMarkup(
-        keyboard,
-        resize_keyboard=True
+        "BUGUN O'CHADI MONITOR\n\nВыберите свой район:",
+        reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
     )
-)
+
 
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🟢 Монитор активен")
 
+
 async def test(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🚨 Тестовое уведомление. Всё работает.")
+
+
 async def choose_district(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text.lower()
+    text = update.message.text
 
     if text not in DISTRICTS:
         return
 
     users = context.application.bot_data.setdefault("users", {})
-    users[update.effective_chat.id] = update.message.text
+    users[update.effective_chat.id] = text
 
     await update.message.reply_text(
         f"✅ Район сохранён: {text}\n\nТеперь буду присылать уведомления только по этому району."
     )
-KEYWORDS = [
-    "bugun o‘chadi",
-    "bugun o'chadi",
-    "bugun",
-    "o‘chiriladi",
-    "o'chiriladi",
-    "отключение",
-    "отключат"
-]
-SOURCES = {
-    "⚡ Свет": "https://www.het.uz/en/lists",
-    "💧 Вода": "https://veoliaenergy.uz/",
-    "🔥 Газ": "https://hududgaz.uz/"
-}
 
-last_states = {}
-sent_hashes = set()
-users = {}
 
-    async def monitor(context: ContextTypes.DEFAULT_TYPE):
+async def monitor(context: ContextTypes.DEFAULT_TYPE):
     global last_states, sent_hashes
 
     users = context.application.bot_data.setdefault("users", {})
@@ -154,7 +167,7 @@ users = {}
             response.raise_for_status()
 
             text = response.text.lower()
-            current_state = "|".join([k for k in KEYWORDS if k in text])
+            current_state = "|".join(k for k in KEYWORDS if k in text)
 
             if url not in last_states:
                 last_states[url] = current_state
@@ -175,6 +188,9 @@ users = {}
             sent_hashes.add(msg_hash)
 
             for chat_id, district in users.items():
+                if not district:
+                    continue
+
                 aliases = DISTRICTS.get(district, [])
 
                 if any(alias.lower() in text for alias in aliases):
@@ -184,24 +200,27 @@ users = {}
                         streets="Смотрите официальный список",
                         time_text="По данным сайта",
                         reason="Плановые работы",
-                        status="red"
+                        status="red",
                     )
 
                     with open(card, "rb") as photo:
                         await context.bot.send_photo(
                             chat_id=chat_id,
-                            photo=photo
+                            photo=photo,
                         )
 
-        except requests.exceptions.RequestException:
+        except requests.exceptions.RequestException as e:
+            print(f"Ошибка {name}: {e}")
             continue
-       
+
+
 app = Application.builder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("status", status))
 app.add_handler(CommandHandler("test", test))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, choose_district))
+
 app.job_queue.run_repeating(monitor, interval=60, first=10)
 
 app.run_polling()
