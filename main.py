@@ -97,11 +97,16 @@ async def monitor(context: ContextTypes.DEFAULT_TYPE):
                 if msg_hash in sent_hashes:
                     continue
                 sent_hashes.add(msg_hash)
-                for chat_id in context.application.bot_data["chats"]:
-                    await context.bot.send_message(
-                        chat_id,
-                        f"🚨 {name}\n\nОбнаружено изменение на официальном сайте.\n{url}"
-                    )
+                users = context.application.bot_data.get("users", {})
+
+            for chat_id, district in users.items():
+    aliases = DISTRICTS.get(district, [])
+
+    if any(alias.lower() in text for alias in aliases):
+        await context.bot.send_message(
+            chat_id,
+            f"🚨 {name}\n\nОбнаружено изменение по району {district}.\n{url}"
+        )
 
         except Exception as e:
             print(e)
