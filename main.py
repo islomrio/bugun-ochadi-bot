@@ -140,9 +140,10 @@ SOURCES = {
 
 last_states = {}
 sent_hashes = set()
+users = {}
 async def monitor(context: ContextTypes.DEFAULT_TYPE):
     global last_states, sent_hashes
-
+    users = context.application.bot_data.setdefault("users", {})
     for name, url in SOURCES.items():
         try:
             response = requests.get(url, timeout=20)
@@ -159,7 +160,7 @@ async def monitor(context: ContextTypes.DEFAULT_TYPE):
                 if msg_hash in sent_hashes:
                     continue
                 sent_hashes.add(msg_hash)
-                users = context.application.bot_data.get("users", {})
+                users = context.application.bot_data.setdefault("users", {})
 
             for chat_id, district in users.items():
 
