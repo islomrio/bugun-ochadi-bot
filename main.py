@@ -26,7 +26,8 @@ last_state = None
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chats = context.application.bot_data.setdefault("chats", set())
     chats.add(update.effective_chat.id)
-
+    users = context.application.bot_data.setdefault("users", {})
+    users.setdefault(update.effective_chat.id, None)
     await update.message.reply_text(
         "BUGUN O'CHADI MONITOR\n\nБот работает."
     )
