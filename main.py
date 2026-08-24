@@ -37,7 +37,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ["Бектемир", "Янгихаёт"]
 ]
 
-await update.message.reply_text(
+    await update.message.reply_text(
     "BUGUN O'CHADI MONITOR\n\nВыберите свой район:",
     reply_markup=ReplyKeyboardMarkup(
         keyboard,
