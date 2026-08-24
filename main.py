@@ -185,7 +185,8 @@ async def monitor(context: ContextTypes.DEFAULT_TYPE):
                        )
                except Exception as e:
                    print(e)
-
+          except requests.exceptions.RequestException:
+              continue
 app = Application.builder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
