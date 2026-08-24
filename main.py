@@ -178,18 +178,18 @@ async def monitor(context: ContextTypes.DEFAULT_TYPE):
                    reason="Плановые работы",
                    status="red"
                )
-               try:
+               
                    with open(card, "rb") as photo:
                        await context.bot.send_photo(
                            chat_id=chat_id,
                            photo=photo
                        )
-               except Exception as e:
-                   print(e)    
+        
+                      except requests.exceptions.RequestException:
+                           continue
 
     
-       except requests.exceptions.RequestException:
-           continue
+       
 app = Application.builder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
