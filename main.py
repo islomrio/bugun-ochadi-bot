@@ -39,29 +39,50 @@ last_states = {}
 sent_hashes = set()
 
 # ---------- Карточка ----------
-
 def create_card(service, district):
-    img = Image.new("RGB", (1080, 1350), (10, 22, 45))
+    img = Image.new("RGB", (1080, 1350), (8, 10, 18))
     draw = ImageDraw.Draw(img)
 
     try:
-        title = ImageFont.truetype("DejaVuSans-Bold.ttf", 80)
-        text = ImageFont.truetype("DejaVuSans.ttf", 42)
+        title = ImageFont.truetype("DejaVuSans-Bold.ttf", 110)
+        subtitle = ImageFont.truetype("DejaVuSans-Bold.ttf", 55)
+        text = ImageFont.truetype("DejaVuSans.ttf", 48)
+        small = ImageFont.truetype("DejaVuSans.ttf", 34)
     except:
         title = ImageFont.load_default()
+        subtitle = ImageFont.load_default()
         text = ImageFont.load_default()
+        small = ImageFont.load_default()
 
-    draw.rectangle((0, 0, 1080, 220), fill=(225, 55, 55))
+    # Верхняя красная шапка
+    draw.rectangle((0, 0, 1080, 260), fill=(205, 20, 20))
 
-    draw.text((50, 45), service, fill="white", font=title)
-    draw.text((50, 290), f"Район: {district}", fill="white", font=text)
-    draw.text((50, 370), "Плановое отключение", fill="white", font=text)
+    draw.text((55, 40), "BUGUN", fill="white", font=title)
+    draw.text((55, 135), "O'CHADI", fill=(255, 215, 0), font=title)
 
-    draw.text((50, 1180), "BUGUN O'CHADI", fill=(255, 215, 0), font=title)
+    # Блок услуги
+    draw.rounded_rectangle((45, 300, 1035, 430), radius=30, fill=(180, 20, 20))
+    draw.text((75, 335), service, fill="white", font=subtitle)
+
+    # Район
+    draw.rounded_rectangle((45, 470, 1035, 620), radius=25, fill=(22, 28, 42))
+    draw.text((75, 500), "📍 Район", fill=(255, 80, 80), font=small)
+    draw.text((75, 545), district.upper(), fill="white", font=subtitle)
+
+    # Статус
+    draw.rounded_rectangle((45, 660, 1035, 820), radius=25, fill=(22, 28, 42))
+    draw.text((75, 695), "⚠️ Статус", fill=(255, 80, 80), font=small)
+    draw.text((75, 740), "ПЛАНОВОЕ ОТКЛЮЧЕНИЕ", fill="white", font=text)
+
+    # Нижний блок
+    draw.rectangle((0, 1160, 1080, 1350), fill=(205, 20, 20))
+    draw.text((55, 1205), "Подпишитесь на канал @Bugunochadi", fill="white", font=small)
+    draw.text((55, 1260), "Свет • Вода • Газ", fill=(255, 215, 0), font=small)
 
     path = "/tmp/card.png"
-    img.save(path)
+    img.save(path, quality=95)
     return path
+
 
 # ---------- Команды ----------
 
@@ -163,7 +184,13 @@ async def monitor(context: ContextTypes.DEFAULT_TYPE):
                             photo=photo,
                             caption=f"{service}: найдено новое обновление.",
                         )
-
+                    if CHANNEL_ID:
+                        with open(card, "rb") as photo:
+                            await context.bot.send_photo(
+                                chat_id=CHANNEL_ID,
+                                photo=photo,
+                                caption=f"{service}\n📍 Район: {district}\n#BugunOchadi",
+                            )
         except Exception as e:
             print(f"[{service}] {e}")
 
