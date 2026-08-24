@@ -146,7 +146,8 @@ async def monitor(context: ContextTypes.DEFAULT_TYPE):
     users = context.application.bot_data.setdefault("users", {})
     for name, url in SOURCES.items():
         try:
-            response = requests.get(url, timeout=20)
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
             text = response.text.lower()
             current_state = "|".join([k for k in KEYWORDS if k in text]) 
 
@@ -193,8 +194,11 @@ async def monitor(context: ContextTypes.DEFAULT_TYPE):
                         photo=photo
 
                     )
-        except Exception as e:
-            print(e)
+                except requests.exceptions.RequestException:
+                    continue
+               except Exception as e:
+                   print(e)
+    
 
 app = Application.builder().token(TOKEN).build()
 
