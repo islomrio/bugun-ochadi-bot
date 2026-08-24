@@ -169,29 +169,22 @@ async def monitor(context: ContextTypes.DEFAULT_TYPE):
 
             if any(alias.lower() in text for alias in aliases):
 
-                card = create_card(
-
-                    service=name,
-
-                    district=district,
-
-                    streets="Смотрите официальный список",
-
-                    time_text="По данным сайта",
-
-                    reason="Плановые работы",
-
-                    status="red"
-
-                )
-                try:
-                    with open(card, "rb") as photo:
-                        await context.bot.send_photo(
-                            chat_id=chat_id,
-                            photo=photo
-                        )
-                except Exception as e:
-                    print(e)
+               card = create_card(
+                   service=name,
+                   district=district,
+                   streets="Смотрите официальный список",
+                   time_text="По данным сайта",
+                   reason="Плановые работы",
+                   status="red"
+               )
+               try:
+                   with open(card, "rb") as photo:
+                       await context.bot.send_photo(
+                           chat_id=chat_id,
+                           photo=photo
+                       )
+               except Exception as e:
+                   print(e)
 
 app = Application.builder().token(TOKEN).build()
 
