@@ -280,7 +280,7 @@ async def new_post(event):
     text = event.raw_text or ""
 
     logging.info(f"📨 Новый пост из: {event.chat.username}")
-    await bot.send_message(chat_id=CHANNEL_ID, text="🧪 ТЕСТ: Telethon поймал новое сообщение.")
+    
 
     logging.info(f"📥 Новый пост: {event.chat.username or event.chat_id}")
     logging.info(f"📝 Первые 80 символов: {text[:80]}")
