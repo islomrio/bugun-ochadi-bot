@@ -12,7 +12,7 @@ from telegram.ext import (
 )
 
 from telethon import TelegramClient, events
-
+from telethon.sessions import StringSession
 logging.basicConfig(level=logging.INFO)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
