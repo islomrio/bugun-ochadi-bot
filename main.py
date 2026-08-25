@@ -20,7 +20,7 @@ CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
 API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
 
-SESSION = "bugun_session"
+STRING_SESSION = "ВСТАВЬ_СЮДА_STRING_SESSION"
 
 SOURCE_CHANNELS = [
     "minenergy_uz",
@@ -30,11 +30,7 @@ SOURCE_CHANNELS = [
 
 bot = Bot(BOT_TOKEN)
 
-client = TelegramClient(
-    SESSION,
-    API_ID,
-    API_HASH,
-)
+client = TelegramClient(StringSession(STRING_SESSION), API_ID, API_HASH)
 
 user_regions = {}
 last_messages = set()
