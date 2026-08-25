@@ -196,7 +196,7 @@ async def shutdown(app: Application):
 
 
 async def run_telethon():
-    await client.start()
+    await client.connect()
     await client.run_until_disconnected()
 
 
