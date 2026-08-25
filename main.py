@@ -13,13 +13,13 @@ from telegram.ext import (
 
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
+
 logging.basicConfig(level=logging.INFO)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
 API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
-
 STRING_SESSION = os.getenv("STRING_SESSION")
 
 SOURCE_CHANNELS = [
@@ -29,7 +29,6 @@ SOURCE_CHANNELS = [
 ]
 
 bot = Bot(BOT_TOKEN)
-
 client = TelegramClient(StringSession(STRING_SESSION), API_ID, API_HASH)
 
 user_regions = {}
@@ -62,25 +61,17 @@ def detect_type(text):
     low = text.lower()
 
     if any(x in low for x in [
-        "elektr",
-        "электр",
-        "svet",
-        "свет",
-        "tok",
-        "электроэнерг",
+        "elektr", "электр", "svet", "свет", "tok", "электроэнерг"
     ]):
         return "⚡ Свет"
 
     if any(x in low for x in [
-        "gaz",
-        "газ",
+        "gaz", "газ"
     ]):
         return "🔥 Газ"
 
     if any(x in low for x in [
-        "suv",
-        "вода",
-        "водоснаб",
+        "suv", "вода", "водоснаб"
     ]):
         return "💧 Вода"
 
@@ -100,8 +91,8 @@ async def publish(text, media=None):
     if media:
         try:
             await bot.send_photo(
-                CHANNEL_ID,
-                media,
+                chat_id=CHANNEL_ID,
+                photo=media,
                 caption=text,
             )
             return
@@ -109,8 +100,8 @@ async def publish(text, media=None):
             pass
 
     await bot.send_message(
-        CHANNEL_ID,
-        text,
+        chat_id=CHANNEL_ID,
+        text=text,
     )
 
 
@@ -178,32 +169,21 @@ async def save_region(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-async def startup(app: Application):
+async def run_telethon():
     try:
         await client.connect()
-
-        if not await client.is_user_authorized():
-            logging.error("Telethon не авторизован.")
-            return
-
-        logging.info("Telethon подключён.")
+        logging.info("Telethon запущен.")
+        await client.run_until_disconnected()
     except Exception as e:
-        logging.error(f"Ошибка запуска Telethon: {e}")
+        logging.error(f"Ошибка Telethon: {e}")
+
+
+async def startup(app: Application):
+    asyncio.create_task(run_telethon())
 
 
 async def shutdown(app: Application):
     await client.disconnect()
-
-
-async def run_telethon():
-    await client.connect()
-
-    @client.on(events.NewMessage(chats=SOURCE_CHANNELS))
-    async def handler(event):
-        await process_message(event)
-
-    print("Telethon запущен")
-    await client.run_until_disconnected()
 
 
 def main():
@@ -224,9 +204,10 @@ def main():
         )
     )
 
-    asyncio.get_event_loop().create_task(run_telethon())
-
-    app.run_polling(drop_pending_updates=True, close_loop=False)
+    app.run_polling(
+        drop_pending_updates=True,
+        close_loop=False,
+    )
 
 
 if __name__ == "__main__":
