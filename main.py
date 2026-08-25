@@ -29,10 +29,15 @@ SOURCE_CHANNELS = [
 ]
 
 bot = Bot(BOT_TOKEN)
-client = TelegramClient(StringSession(STRING_SESSION), API_ID, API_HASH)
 
-user_regions = {}
+client = TelegramClient(
+    StringSession(STRING_SESSION),
+    API_ID,
+    API_HASH,
+)
+
 last_messages = set()
+user_regions = {}
 
 REGIONS = [
     "Юнусабад",
@@ -50,28 +55,35 @@ REGIONS = [
 
 
 def detect_region(text):
-    low = text.lower()
+    text = text.lower()
     for r in REGIONS:
-        if r.lower() in low:
+        if r.lower() in text:
             return r
     return None
 
 
 def detect_type(text):
-    low = text.lower()
+    text = text.lower()
 
-    if any(x in low for x in [
-        "elektr", "электр", "svet", "свет", "tok", "электроэнерг"
+    if any(x in text for x in [
+        "электр",
+        "свет",
+        "tok",
+        "elektr",
+        "электроэнерг",
     ]):
         return "⚡ Свет"
 
-    if any(x in low for x in [
-        "gaz", "газ"
+    if any(x in text for x in [
+        "газ",
+        "gaz",
     ]):
         return "🔥 Газ"
 
-    if any(x in low for x in [
-        "suv", "вода", "водоснаб"
+    if any(x in text for x in [
+        "вода",
+        "suv",
+        "водоснаб",
     ]):
         return "💧 Вода"
 
@@ -88,21 +100,20 @@ async def publish(text, media=None):
         last_messages.clear()
         last_messages.add(text)
 
-    if media:
-        try:
+    try:
+        if media:
             await bot.send_photo(
                 chat_id=CHANNEL_ID,
                 photo=media,
                 caption=text,
             )
-            return
-        except Exception:
-            pass
-
-    await bot.send_message(
-        chat_id=CHANNEL_ID,
-        text=text,
-    )
+        else:
+            await bot.send_message(
+                chat_id=CHANNEL_ID,
+                text=text,
+            )
+    except Exception as e:
+        logging.error(f"Ошибка публикации: {e}")
 
 
 @client.on(events.NewMessage(chats=SOURCE_CHANNELS))
@@ -115,12 +126,12 @@ async def new_post(event):
     region = detect_region(text)
     outage = detect_type(text)
 
-    caption = f"{outage}\n"
+    message = f"{outage}\n"
 
     if region:
-        caption += f"📍 Район: {region}\n"
+        message += f"📍 Район: {region}\n"
 
-    caption += f"\n{text}"
+    message += f"\n{text}"
 
     media = None
 
@@ -130,12 +141,12 @@ async def new_post(event):
     except Exception:
         media = None
 
-    await publish(caption, media)
+    await publish(message, media)
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "BUGUN O'CHADI\n\n"
+        "👋 Добро пожаловать в BUGUN O'CHADI.\n\n"
         "Напишите свой район.\n\n"
         "Например:\n"
         "Юнусабад"
@@ -143,17 +154,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user.id
-    region = user_regions.get(user, "не выбран")
+    region = user_regions.get(update.effective_user.id, "не выбран")
 
     await update.message.reply_text(
-        f"🟢 Монитор активен\n"
+        f"🟢 Монитор работает.\n"
         f"📍 Район: {region}"
     )
 
 
 async def save_region(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message or not update.message.text:
+    if not update.message:
         return
 
     text = update.message.text.strip()
@@ -166,6 +176,43 @@ async def save_region(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"✅ Район сохранён: {text}\n\n"
         "Теперь новые отключения будут автоматически отслеживаться."
+    )
+
+
+async def comments(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message:
+        return
+
+    text = update.message.text.lower()
+
+    if "свет" in text:
+        await update.message.reply_text(
+            "⚡ Проверяю последние отключения света..."
+        )
+        return
+
+    if "газ" in text:
+        await update.message.reply_text(
+            "🔥 Проверяю последние отключения газа..."
+        )
+        return
+
+    if "вода" in text:
+        await update.message.reply_text(
+            "💧 Проверяю последние отключения воды..."
+        )
+        return
+
+    region = detect_region(text)
+
+    if region:
+        await update.message.reply_text(
+            f"📍 Проверяю отключения в районе {region}..."
+        )
+        return
+
+    await update.message.reply_text(
+        "Напишите: свет, газ, вода или название района."
     )
 
 
@@ -197,10 +244,24 @@ def main():
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("status", status))
+
+    # Личные сообщения
     app.add_handler(
         MessageHandler(
-            filters.TEXT & ~filters.COMMAND,
+            filters.ChatType.PRIVATE
+            & filters.TEXT
+            & ~filters.COMMAND,
             save_region,
+        )
+    )
+
+    # Комментарии группы обсуждений
+    app.add_handler(
+        MessageHandler(
+            filters.ChatType.GROUPS
+            & filters.TEXT
+            & ~filters.COMMAND,
+            comments,
         )
     )
 
