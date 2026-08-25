@@ -197,6 +197,12 @@ async def shutdown(app: Application):
 
 async def run_telethon():
     await client.connect()
+
+    @client.on(events.NewMessage(chats=SOURCE_CHANNELS))
+    async def handler(event):
+        await process_message(event)
+
+    print("Telethon запущен")
     await client.run_until_disconnected()
 
 
