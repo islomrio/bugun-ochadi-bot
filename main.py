@@ -492,7 +492,7 @@ async def run_telethon():
             for channel in SOURCE_CHANNELS:
                 try:
                     await client(JoinChannelRequest(channel))
-            logging.info(f"Подписался на {channel}")
+                    logging.info(f"Подписался на {channel}")
                 except Exception:
                     pass
         
