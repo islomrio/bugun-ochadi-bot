@@ -487,6 +487,15 @@ async def run_telethon():
             if not client.is_connected():
                 await client.connect()
 
+            from telethon.tl.functions.channels import JoinChannelRequest
+
+            for channel in SOURCE_CHANNELS:
+                try:
+                    await client(JoinChannelRequest(channel))
+            logging.info(f"Подписался на {channel}")
+                except Exception:
+                    pass
+        
             logging.info("Telethon подключён")
 
             await client.run_until_disconnected()
