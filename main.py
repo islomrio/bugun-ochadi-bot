@@ -20,7 +20,7 @@ CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
 API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
 
-STRING_SESSION = "ВСТАВЬ_СЮДА_STRING_SESSION"
+STRING_SESSION = os.getenv("STRING_SESSION")
 
 SOURCE_CHANNELS = [
     "minenergy_uz",
